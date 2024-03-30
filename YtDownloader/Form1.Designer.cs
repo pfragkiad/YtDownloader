@@ -112,9 +112,9 @@
             label2.AutoSize = true;
             label2.Location = new Point(42, 29);
             label2.Name = "label2";
-            label2.Size = new Size(78, 15);
+            label2.Size = new Size(184, 15);
             label2.TabIndex = 4;
-            label2.Text = "Youtube URL:";
+            label2.Text = "Video/Playlist URL/ID/mixed URL:";
             // 
             // chkIsPlaylist
             // 
@@ -142,7 +142,7 @@
             Controls.Add(txtTarget);
             Controls.Add(textBox1);
             Name = "Form1";
-            Text = "YT MP3 Downloader";
+            Text = "YouTubino MP3";
             ResumeLayout(false);
             PerformLayout();
         }

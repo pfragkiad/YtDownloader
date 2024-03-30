@@ -11,6 +11,24 @@ namespace YtDownloader
             InitializeComponent();
             //TODO: yt-dlp in settings ? or internal exe
             //TODO: format of exported file 
+
+            var settings = YtSettings.Default;
+            string lastFolder = settings.Folder;
+            if (!string.IsNullOrWhiteSpace(lastFolder) && Directory.Exists(lastFolder))
+                txtTarget.Text = lastFolder;
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            var settings = YtSettings.Default;
+            string lastFolder = txtTarget.Text;
+            if (!string.IsNullOrWhiteSpace(lastFolder) && Directory.Exists(lastFolder))
+            {
+                settings.Folder = lastFolder;
+                settings.Save();
+            }
+
+            base.OnFormClosing(e);
         }
 
         static CultureInfo EN = CultureInfo.GetCultureInfo("en-US");
@@ -18,7 +36,7 @@ namespace YtDownloader
         private async void btnDownload_Click(object sender, EventArgs e)
         {
             // Path to the executable
-            string exePath = Program.Configuration!["ytdlp"]!; // "C:\\tools\\yt-dlp.exe";
+            string exePath = Program.Configuration!["yt-dlp"]!; // "C:\\tools\\yt-dlp.exe";
 
 
 
@@ -57,8 +75,8 @@ namespace YtDownloader
 
             // Arguments to pass to the executable
             string arguments = !chkIsPlaylist.Checked ?
-                $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" {url}" :
-                $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" {url}";
+                $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" -- {url}" :
+                $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {url}";
 
             if (!Directory.Exists(txtTarget.Text)) Directory.CreateDirectory(txtTarget.Text);
 
@@ -83,13 +101,14 @@ namespace YtDownloader
             Application.UseWaitCursor = true;
 
             // Create a new process
-            using (Process process = new Process())
+            using (Process process = new())
             {
                 process.StartInfo = startInfo;
 
                 // Event handler for capturing standard output
                 process.OutputDataReceived += (s, args) =>
                 {
+                    //TODO: Track completion from process output?
                     if (!string.IsNullOrEmpty(args.Data))
                     {
                         // Append the output to the TextBox
