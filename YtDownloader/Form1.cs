@@ -90,53 +90,10 @@ namespace YtDownloader
 
         private async void btnDownload_Click(object sender, EventArgs e)
         {
-            // Path to the executable
-            string exePath = Program.Configuration!["yt-dlp"]!; // "C:\\tools\\yt-dlp.exe";
-
-
-
             string url = textBox1.Text;
             if (string.IsNullOrWhiteSpace(url)) return;
 
-            if (chkIsPlaylist.Checked)
-            {
-                if (url.Contains("list=") )
-                {
-                    var m = Regex.Match(url, "list=(?<id>[a-zA-Z0-9_-]+)");
-                    if (m.Success)
-                        url = m.Groups["id"].Value;
-                }
-                else url = $"https://www.youtube.com/watch?list={url}";
-            }
-            else
-            {
-                if (url.Contains("youtu.be"))
-                {
-                    //https://youtu.be/YX7Atj6-IIA?t=17
-                    var m = Regex.Match(url, "https://youtu.be/(?<id>[a-zA-Z0-9_-]{11})");
-                    if (m.Success)
-                        url = m.Groups["id"].Value;
-
-                }
-                //https://www.youtube.com/watch?v=wAo6lUU6Zxk&pp=ygUSaGVscGxlc3MgZmlyZWhvdXNl
-                else if (url.Contains("youtube"))
-                {
-                    var m = Regex.Match(url, "v=(?<id>[a-zA-Z0-9_-]{11})");
-                    if (m.Success)
-                        url = m.Groups["id"].Value;
-                }
-                else url = $"https://www.youtube.com/watch?v={url}";
-            }
-
-            // Arguments to pass to the executable
-            string arguments = !chkIsPlaylist.Checked ?
-                $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" -- {url}" :
-                $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {url}";
-
-            if (!Directory.Exists(txtTarget.Text)) Directory.CreateDirectory(txtTarget.Text);
-
-            //await Download(exePath, arguments);
-            await _downloader.Download(arguments, txtTarget.Text);
+            await _downloader.Download(url,chkIsPlaylist.Checked, txtTarget.Text);
         }
 
         private void btnClear_Click(object sender, EventArgs e)

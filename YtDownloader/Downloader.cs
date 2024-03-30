@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.Configuration;
+using System;
 using System.ComponentModel;
 using System.Configuration.Internal;
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Policy;
 using System.Text.RegularExpressions;
 
 namespace YtDownloader;
@@ -39,9 +41,19 @@ public class Downloader
 
 
     public async Task Download(
-        string arguments,
-        string workingDirectory)
+        string url,
+        bool isPlaylist,
+        string targetDirectory)
     {
+        if (!Directory.Exists(targetDirectory))
+            Directory.CreateDirectory(targetDirectory);
+
+        url = GetCleanUrlOrId(url, isPlaylist);
+
+        string arguments = !isPlaylist ?
+            $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" -- {url}" :
+            $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {url}";
+
 
         // Create a new process start info
         ProcessStartInfo startInfo = new()
@@ -51,7 +63,7 @@ public class Downloader
             CreateNoWindow = true,
             UseShellExecute = false,
             RedirectStandardOutput = true,
-            WorkingDirectory = workingDirectory
+            WorkingDirectory = targetDirectory
 
         };
 
@@ -136,4 +148,39 @@ public class Downloader
         Finished?.Invoke(this, EventArgs.Empty);
     }
 
+    //TODO: Check of plain list_id works
+    private static string GetCleanUrlOrId(string url, bool isPlaylist)
+    {
+        if (isPlaylist)
+        {
+            if (url.Contains("list="))
+            {
+                var m = Regex.Match(url, "list=(?<id>[a-zA-Z0-9_-]+)");
+                if (m.Success)
+                    url = m.Groups["id"].Value;
+            }
+            else url = $"https://www.youtube.com/watch?list={url}";
+        }
+        else
+        {
+            if (url.Contains("youtu.be"))
+            {
+                //https://youtu.be/YX7Atj6-IIA?t=17
+                var m = Regex.Match(url, "https://youtu.be/(?<id>[a-zA-Z0-9_-]+)");
+                if (m.Success)
+                    url = m.Groups["id"].Value;
+
+            }
+            //https://www.youtube.com/watch?v=wAo6lUU6Zxk&pp=ygUSaGVscGxlc3MgZmlyZWhvdXNl
+            else if (url.Contains("youtube"))
+            {
+                var m = Regex.Match(url, "v=(?<id>[a-zA-Z0-9_-]+)");
+                if (m.Success)
+                    url = m.Groups["id"].Value;
+            }
+            else url = $"https://www.youtube.com/watch?v={url}";
+        }
+
+        return url;
+    }
 }
