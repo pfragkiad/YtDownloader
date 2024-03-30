@@ -23,11 +23,13 @@ namespace YtDownloader
             _downloader = downloader;
             _downloader.DownloadStarted += Downloader_DownloadStarted;
             _downloader.Downloaded += Downloader_Downloaded;
+            _downloader.DownloadCancelled += Downloader_DownloadCancelled;
             _downloader.Finished += Downloader_Finished;
             _downloader.DownloadProgressChanged += Downloader_DownloadProgressChanged;
             _downloader.StatusChanged += Downloader_StatusChanged;
             _downloader.DownloadFailed += Downloader_DownloadFailed;
         }
+
 
         #region Downloader events
         private void Downloader_StatusChanged(object? sender, StatusChangedEventArgs e)
@@ -52,6 +54,10 @@ namespace YtDownloader
             Application.UseWaitCursor = false;
             Cursor.Current = Cursors.Default;
         }
+        private void Downloader_DownloadCancelled(object? sender, EventArgs e)
+        {
+            tstStatus.Text = "Download cancelled.";
+        }
 
         private void Downloader_DownloadStarted(object? sender, EventArgs e)
         {
@@ -66,7 +72,7 @@ namespace YtDownloader
 
         private void Downloader_Downloaded(object? sender, EventArgs e)
         {
-            tstStatus.Text = "Successfully downloaded";
+            tstStatus.Text = "Successfully downloaded.";
         }
         private void Downloader_DownloadFailed(object? sender, EventArgs e)
         {
@@ -87,13 +93,28 @@ namespace YtDownloader
             base.OnFormClosing(e);
         }
 
-
+        CancellationTokenSource? source;
+        bool alreadyDownloading = false;
         private async void btnDownload_Click(object sender, EventArgs e)
         {
+            if (alreadyDownloading)
+            {
+                source!.Cancel();
+                btnDownload.Text = "DOWNLOAD";
+                return;
+            }
+
             string url = textBox1.Text;
             if (string.IsNullOrWhiteSpace(url)) return;
 
-            await _downloader.Download(url,chkIsPlaylist.Checked, txtTarget.Text);
+            alreadyDownloading = true;
+            btnDownload.Text = "Cancel";
+            source = new();
+            await _downloader.Download(url, chkIsPlaylist.Checked, txtTarget.Text, source.Token);
+            tstStatus.Text = "Download cancelled";
+            source = null;
+            btnDownload.Text = "DOWNLOAD";
+            alreadyDownloading = false;
         }
 
         private void btnClear_Click(object sender, EventArgs e)

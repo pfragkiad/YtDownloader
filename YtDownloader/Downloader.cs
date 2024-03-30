@@ -35,6 +35,7 @@ public class Downloader
     public event EventHandler? DownloadStarted;
     public event EventHandler? Downloaded;
     public event EventHandler? DownloadFailed;
+    public event EventHandler DownloadCancelled;
     public event EventHandler? Finished;
     public event ProgressChangedEventHandler? DownloadProgressChanged;
     public event EventHandler<StatusChangedEventArgs>? StatusChanged;
@@ -43,7 +44,8 @@ public class Downloader
     public async Task Download(
         string url,
         bool isPlaylist,
-        string targetDirectory)
+        string targetDirectory,
+        CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(targetDirectory))
             Directory.CreateDirectory(targetDirectory);
@@ -100,7 +102,6 @@ public class Downloader
                     string? status = args.Data;
                     if (status is null) return;
                     // Append the output to the TextBox
-
                     //BeginInvoke(() =>
                     //{
                     if (m.Success)
@@ -129,8 +130,17 @@ public class Downloader
             // Begin asynchronous reading of the standard output stream
             process.BeginOutputReadLine();
 
-            // Wait for the process to exit
-            await process.WaitForExitAsync();
+            try
+            {
+                // Wait for the process to exit
+                await process.WaitForExitAsync(cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                DownloadCancelled?.Invoke(this, EventArgs.Empty);
+                Finished?.Invoke(this, EventArgs.Empty);
+                return;
+            }
 
             //// Display the exit code
             if (process.ExitCode == 0)
@@ -148,7 +158,6 @@ public class Downloader
         Finished?.Invoke(this, EventArgs.Empty);
     }
 
-    //TODO: Check of plain list_id works
     private static string GetCleanUrlOrId(string url, bool isPlaylist)
     {
         if (isPlaylist)
@@ -159,7 +168,8 @@ public class Downloader
                 if (m.Success)
                     url = m.Groups["id"].Value;
             }
-            else url = $"https://www.youtube.com/watch?list={url}";
+            //leave the text as list
+            //else url = $"https://www.youtube.com/watch?list={url}";
         }
         else
         {
@@ -178,7 +188,7 @@ public class Downloader
                 if (m.Success)
                     url = m.Groups["id"].Value;
             }
-            else url = $"https://www.youtube.com/watch?v={url}";
+            //else url = $"https://www.youtube.com/watch?v={url}";
         }
 
         return url;
