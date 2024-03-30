@@ -51,6 +51,7 @@ namespace YtDownloader
         private void Downloader_Finished(object? sender, EventArgs e)
         {
             progressBar1.Visible = false;
+            btnDownload.Text = "DOWNLOAD";
             Application.UseWaitCursor = false;
             Cursor.Current = Cursors.Default;
         }
@@ -66,6 +67,7 @@ namespace YtDownloader
 
             tstStatus.Text = "Downloading...";
 
+            btnDownload.Text = "CANCEL";
             progressBar1.Value = 0;
             progressBar1.Visible = true;
         }
@@ -100,7 +102,6 @@ namespace YtDownloader
             if (alreadyDownloading)
             {
                 source!.Cancel();
-                btnDownload.Text = "DOWNLOAD";
                 return;
             }
 
@@ -108,12 +109,9 @@ namespace YtDownloader
             if (string.IsNullOrWhiteSpace(url)) return;
 
             alreadyDownloading = true;
-            btnDownload.Text = "Cancel";
             source = new();
             await _downloader.Download(url, chkIsPlaylist.Checked, txtTarget.Text, source.Token);
-            tstStatus.Text = "Download cancelled";
             source = null;
-            btnDownload.Text = "DOWNLOAD";
             alreadyDownloading = false;
         }
 

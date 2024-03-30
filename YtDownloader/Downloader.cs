@@ -51,14 +51,22 @@ public class Downloader
         if (!Directory.Exists(targetDirectory))
             Directory.CreateDirectory(targetDirectory);
 
+        int count = 1;
+
         if (urlOrId.Contains("/"))
+        {
             urlOrId = GetId(urlOrId, isPlaylist);
+        }
         else
         {
             //force playlist validation if the plain url is given
-            int? count = await GetPlaylistCount(urlOrId);
-            if ( (count ?? 0) == 0) isPlaylist = false;
+            int? returnedCount = await GetPlaylistCount(urlOrId);
+            isPlaylist = (returnedCount ?? 0) > 0;
+            if (isPlaylist) count = returnedCount!.Value;
         }
+
+        //string? title = await GetTitle(urlOrId);
+        //Debugger.Break();
 
 
         string arguments = !isPlaylist ?
@@ -93,77 +101,107 @@ public class Downloader
         Deleting original file Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.m4a (pass -k to keep)
          */
 
+        int currentIndex = 1;
 
         // Create a new process
-        using (Process process = new())
+        using Process process = new();
+
+        process.StartInfo = startInfo;
+
+        // Event handler for capturing standard output
+        process.OutputDataReceived += (s, args) =>
         {
-            process.StartInfo = startInfo;
+            string? status = args.Data;
+            if (string.IsNullOrEmpty(status)) return;
 
-            // Event handler for capturing standard output
-            process.OutputDataReceived += (s, args) =>
+
+            //for single file
+            /*
+[download] Downloading item 3 of 9
+[youtube] Extracting URL: https://www.youtube.com/watch?v=eREL7WJm2Po
+[youtube] eREL7WJm2Po: Downloading webpage
+[youtube] eREL7WJm2Po: Downloading ios player API JSON
+[youtube] eREL7WJm2Po: Downloading android player API JSON
+[youtube] eREL7WJm2Po: Downloading m3u8 information
+[info] eREL7WJm2Po: Downloading 1 format(s): 251
+[download] 02 Pare Karotsa Ki Ela.mp3 has already been downloaded
+or
+[download] Destination: 03 Sitiakes Kondilies.webm  
+[download]   0.0% of    4.04MiB at  353.77KiB/s ETA 00:11
+[download]   0.1% of    4.04MiB at    1.04MiB/s ETA 00:03
+[download]   0.2% of    4.04MiB at    1.79MiB/s ETA 00:02
+[download]   0.4% of    4.04MiB at    3.83MiB/s ETA 00:01
+[download]   0.7% of    4.04MiB at    2.77MiB/s ETA 00:01
+[download]   1.5% of    4.04MiB at    3.85MiB/s ETA 00:01
+[download]   3.1% of    4.04MiB at    4.99MiB/s ETA 00:00
+[download]   6.2% of    4.04MiB at    6.38MiB/s ETA 00:00
+[download]  12.3% of    4.04MiB at    7.90MiB/s ETA 00:00
+[download]  24.7% of    4.04MiB at    8.37MiB/s ETA 00:00
+[download]  49.4% of    4.04MiB at    9.07MiB/s ETA 00:00
+[download]  98.9% of    4.04MiB at    9.27MiB/s ETA 00:00
+[download] 100.0% of    4.04MiB at    9.23MiB/s ETA 00:00
+[download] 100% of    4.04MiB in 00:00:00 at 7.44MiB/s   
+[ExtractAudio] Destination: 03 Sitiakes Kondilies.mp3
+             */
+            //[download] 100%
+            //[download] 100.0%
+            var m = Regex.Match(status, @"\[download\]\s+(?<perc>\d+(\.\d+)?)%");
+            if (m.Success)
             {
-                if (!string.IsNullOrEmpty(args.Data))
+                float partialPercentage = float.Parse(m.Groups["perc"].Value, EN) / 100.0f;
+                int percentage = (int)(100.0f * ((currentIndex - 1) + partialPercentage) / count);
+                DownloadProgressChanged?.Invoke(this, new ProgressChangedEventArgs(percentage, null));
+            }
+            else
+            {
+                //[download] Downloading item 1 of 9
+                var m2 = Regex.Match(status, @"\[download\] Downloading item\s+(?<i>\d+)");
+                if (m2.Success)
                 {
-                    //[download] 100%
-                    //[download] 100.0%
-                    var m = Regex.Match(args.Data, @"\[download\]\s+(?<perc>\d+(\.\d+)?)%");
-                    string? status = args.Data;
-                    if (status is null) return;
-                    // Append the output to the TextBox
-                    //BeginInvoke(() =>
-                    //{
-                    if (m.Success)
-                    {
-                        int percentage = (int)float.Parse(m.Groups["perc"].Value, EN);
-                        //progressBar1.Value = (int)float.Parse(m.Groups["perc"].Value, EN);
-                        DownloadProgressChanged?.Invoke(this, new ProgressChangedEventArgs(percentage, null));
-                    }
-                    else
-                    {
-                        // textBoxOutput.AppendText(args.Data + Environment.NewLine);
-                        StatusChanged?.Invoke(this, new StatusChangedEventArgs(status));
-                    }
-                    //   Application.DoEvents();
-                    //});
+                    currentIndex = int.Parse(m2.Groups["i"].Value);
+                    int percentage = (int)(100.0f * (currentIndex - 1) / count);
+                    DownloadProgressChanged?.Invoke(this, new ProgressChangedEventArgs(percentage, null));
+
                 }
-            };
-            //progressBar1.Value = 0;
-            //progressBar1.Visible = true;
-
-            DownloadStarted?.Invoke(this, EventArgs.Empty);
-
-            // Start the process
-            process.Start();
-
-            // Begin asynchronous reading of the standard output stream
-            process.BeginOutputReadLine();
-
-            try
-            {
-                // Wait for the process to exit
-                await process.WaitForExitAsync(cancellationToken);
+                else
+                    StatusChanged?.Invoke(this, new StatusChangedEventArgs(status));
             }
-            catch (TaskCanceledException)
-            {
-                DownloadCancelled?.Invoke(this, EventArgs.Empty);
-                Finished?.Invoke(this, EventArgs.Empty);
-                return;
-            }
+        };
 
+        //progressBar1.Value = 0;
+        //progressBar1.Visible = true;
+
+        DownloadStarted?.Invoke(this, EventArgs.Empty);
+
+        // Start the process
+        process.Start();
+
+        // Begin asynchronous reading of the standard output stream
+        process.BeginOutputReadLine();
+
+        try
+        {
+            // Wait for the process to exit
+            await process.WaitForExitAsync(cancellationToken);
             //// Display the exit code
             if (process.ExitCode == 0)
                 Downloaded?.Invoke(this, EventArgs.Empty);
             else
                 DownloadFailed?.Invoke(this, EventArgs.Empty);
+        }
+        catch (TaskCanceledException)
+        {
+            DownloadCancelled?.Invoke(this, EventArgs.Empty);
+            Finished?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+        finally
+        {
+            Finished?.Invoke(this, EventArgs.Empty);
 
-            //textBoxOutput.AppendText("Process exited with code: " + process.ExitCode + Environment.NewLine);
-            //progressBar1.Visible = false;
         }
 
-        //Application.UseWaitCursor = false;
-        //Cursor.Current = Cursors.Default;
 
-        Finished?.Invoke(this, EventArgs.Empty);
     }
 
     private static string GetId(string url, bool isPlaylist)
@@ -207,7 +245,6 @@ public class Downloader
         string arguments = $"{playlistId} -I0 -O playlist:playlist_count";
 
         ProcessStarter starter = Program.ServiceProvider!.GetRequiredService<ProcessStarter>();
-
         var output = await starter.RunAndReturnOutput(_exePath, arguments);
 
         //error if not playlist 
@@ -219,7 +256,24 @@ yt-dlp : WARNING: [youtube] Skipping player responses from android clients (got 
         if (string.IsNullOrWhiteSpace(output.StandardOutput)) return 0;
 
         //a plain number should be returned on success (or else the return is undefined)
-        bool parsed =  int.TryParse(output.StandardOutput.Trim(), out int count);
+        bool parsed = int.TryParse(output.StandardOutput.Trim(), out int count);
         return parsed ? count : null;
+    }
+
+    public async Task<string?> GetFilename(string videoId)
+    {
+        string arguments = $" --get-filename -- {videoId}";
+
+        ProcessStarter starter = Program.ServiceProvider!.GetRequiredService<ProcessStarter>();
+        var output = await starter.RunAndReturnOutput(_exePath, arguments);
+        return string.IsNullOrWhiteSpace(output.StandardOutput) ? null : output.StandardOutput.Trim();
+    }
+    public async Task<string?> GetTitle(string videoId)
+    {
+        string arguments = $" --get-title -- {videoId}";
+
+        ProcessStarter starter = Program.ServiceProvider!.GetRequiredService<ProcessStarter>();
+        var output = await starter.RunAndReturnOutput(_exePath, arguments);
+        return string.IsNullOrWhiteSpace(output.StandardOutput) ? null : output.StandardOutput.Trim();
     }
 }
