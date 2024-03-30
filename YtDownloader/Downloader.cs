@@ -1,11 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 using System.ComponentModel;
-using System.Configuration.Internal;
-using System.Diagnostics;
 using System.Globalization;
-using System.Security.Policy;
 using System.Text.RegularExpressions;
 
 namespace YtDownloader;
@@ -27,10 +23,14 @@ public class Downloader
 #pragma warning restore IDE1006 // Naming Styles
 
     readonly string _exePath;
+    private readonly IServiceProvider _provider;
+    private readonly ProcessStarter _process;
 
-    public Downloader(IConfiguration configuration)
+    public Downloader(IServiceProvider provider, IConfiguration configuration, ProcessStarter process)
     {
         _exePath = configuration!["yt-dlp"]!;
+        _provider = provider;
+        _process = process;
     }
 
     public event EventHandler? DownloadStarted;
@@ -44,17 +44,18 @@ public class Downloader
     public event EventHandler<StatusChangedEventArgs>? StatusChanged;
 
     /*
-[youtube] Extracting URL: https://www.youtube.com/watch?v=C2tN_YDZsdI
-[youtube] C2tN_YDZsdI: Downloading webpage
-[youtube] C2tN_YDZsdI: Downloading ios player API JSON
-[youtube] C2tN_YDZsdI: Downloading android player API JSON
-[youtube] C2tN_YDZsdI: Downloading m3u8 information
-[info] C2tN_YDZsdI: Downloading 1 format(s): 251
-[download] Destination: 09 Irakliotikos Pidihtos.webm
-...
-[ExtractAudio] Destination: 09 Irakliotikos Pidihtos.mp3
-Deleting original file 09 Irakliotikos Pidihtos.webm (pass -k to keep)
- */
+    [download] Downloading item 3 of 9
+    [youtube] Extracting URL: https://www.youtube.com/watch?v=C2tN_YDZsdI
+    [youtube] C2tN_YDZsdI: Downloading webpage
+    [youtube] C2tN_YDZsdI: Downloading ios player API JSON
+    [youtube] C2tN_YDZsdI: Downloading android player API JSON
+    [youtube] C2tN_YDZsdI: Downloading m3u8 information
+    [info] C2tN_YDZsdI: Downloading 1 format(s): 251
+    [download] Destination: 09 Irakliotikos Pidihtos.webm
+    ...
+    [ExtractAudio] Destination: 09 Irakliotikos Pidihtos.mp3
+    Deleting original file 09 Irakliotikos Pidihtos.webm (pass -k to keep)
+     */
 
     /* (playlist specific)
     [youtube:playlist] Extracting URL: OLAK5uy_k3vbo8oJfA9SWuKNTcE6ftF-1HCNUM-Hk
@@ -65,9 +66,24 @@ Deleting original file 09 Irakliotikos Pidihtos.webm (pass -k to keep)
     [youtube:tab] Playlist Hori Ke Tragoudia Tis Kritis: Downloading 9 items of 9
      */
 
-    //[ExtractAudio] Not converting audio 01 Irakliotikes Kondilies.mp3; file is already in target format mp3
+    /* example output (without download percentage)
+     [youtube] Extracting URL: oRSgKylpbEo
+    [youtube] oRSgKylpbEo: Downloading webpage
+    [youtube] oRSgKylpbEo: Downloading ios player API JSON
+    [youtube] oRSgKylpbEo: Downloading android player API JSON
+    [youtube] oRSgKylpbEo: Downloading m3u8 information
+    [info] oRSgKylpbEo: Downloading 1 format(s): 258
+    [download] Destination: Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.m4a
+    [FixupM4a] Correcting container of "Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.m4a"
+    [ExtractAudio] Destination: Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.mp3
+    Deleting original file Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.m4a (pass -k to keep)
 
-    List<string> IgnoredLabels = ["[youtube]", "[info]", "Deleting original", "[ExtractAudio] Not converting", "[youtube:tab]", "[youtube:playlist]"];
+    or
+    [ExtractAudio] Not converting audio 01 Irakliotikes Kondilies.mp3; file is already in target format mp3
+     */
+
+
+    List<string> IgnoredLabels = ["[youtube]", "[info]", "Deleting original", "[ExtractAudio] Not converting", "[youtube:tab]", "[youtube:playlist]", "[FixupM4a]"];
 
     public async Task Download(
         string urlOrId,
@@ -79,6 +95,7 @@ Deleting original file 09 Irakliotikos Pidihtos.webm (pass -k to keep)
             Directory.CreateDirectory(targetDirectory);
 
         int count = 1;
+        int currentIndex = 1;
 
         if (urlOrId.Contains("/"))
         {
@@ -92,101 +109,47 @@ Deleting original file 09 Irakliotikos Pidihtos.webm (pass -k to keep)
             if (isPlaylist) count = returnedCount!.Value;
         }
 
-        //string? title = await GetTitle(urlOrId);
-        //Debugger.Break();
-
-
         string arguments = !isPlaylist ?
             $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" -- {urlOrId}" :
             $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {urlOrId}";
 
 
-        // Create a new process start info
-        ProcessStartInfo startInfo = new()
-        {
-            FileName = _exePath,
-            Arguments = arguments,
-            CreateNoWindow = true,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            WorkingDirectory = targetDirectory
-        };
+        var process = _provider.GetRequiredService<ProcessStarter>();
 
-        //Cursor.Current = Cursors.WaitCursor;
-        //Application.UseWaitCursor = true;
-
-        /* example output (without download percentage)
-         [youtube] Extracting URL: oRSgKylpbEo
-        [youtube] oRSgKylpbEo: Downloading webpage
-        [youtube] oRSgKylpbEo: Downloading ios player API JSON
-        [youtube] oRSgKylpbEo: Downloading android player API JSON
-        [youtube] oRSgKylpbEo: Downloading m3u8 information
-        [info] oRSgKylpbEo: Downloading 1 format(s): 258
-        [download] Destination: Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.m4a
-        [FixupM4a] Correcting container of "Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.m4a"
-        [ExtractAudio] Destination: Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.mp3
-        Deleting original file Tenacious D - Beelzeboss (The Final Showdown) - 4K - 5.1 Surround.m4a (pass -k to keep)
-         */
-
-        int currentIndex = 1;
-
-        // Create a new process
-        using Process process = new();
-
-        process.StartInfo = startInfo;
-
-        // Event handler for capturing standard output
-        process.OutputDataReceived += (s, args) =>
+        process.OutputReceived += (s, args) =>
         {
             string? status = args.Data;
             if (string.IsNullOrEmpty(status)) return;
+            
+            foreach (string label in IgnoredLabels) if (status.StartsWith(label)) return;
 
-
-            //for single file
             /*
-[download] Downloading item 3 of 9
-[youtube] Extracting URL: https://www.youtube.com/watch?v=eREL7WJm2Po
-[youtube] eREL7WJm2Po: Downloading webpage
-[youtube] eREL7WJm2Po: Downloading ios player API JSON
-[youtube] eREL7WJm2Po: Downloading android player API JSON
-[youtube] eREL7WJm2Po: Downloading m3u8 information
-[info] eREL7WJm2Po: Downloading 1 format(s): 251
-
-[download] 02 Pare Karotsa Ki Ela.mp3 has already been downloaded
-or
-[download] Destination: 03 Sitiakes Kondilies.webm  
-[download]   0.0% of    4.04MiB at  353.77KiB/s ETA 00:11
-[download]   0.1% of    4.04MiB at    1.04MiB/s ETA 00:03
-[download]   0.2% of    4.04MiB at    1.79MiB/s ETA 00:02
-[download]   0.4% of    4.04MiB at    3.83MiB/s ETA 00:01
-[download]   0.7% of    4.04MiB at    2.77MiB/s ETA 00:01
-[download]   1.5% of    4.04MiB at    3.85MiB/s ETA 00:01
-[download]   3.1% of    4.04MiB at    4.99MiB/s ETA 00:00
-[download]   6.2% of    4.04MiB at    6.38MiB/s ETA 00:00
-[download]  12.3% of    4.04MiB at    7.90MiB/s ETA 00:00
-[download]  24.7% of    4.04MiB at    8.37MiB/s ETA 00:00
-[download]  49.4% of    4.04MiB at    9.07MiB/s ETA 00:00
-[download]  98.9% of    4.04MiB at    9.27MiB/s ETA 00:00
-[download] 100.0% of    4.04MiB at    9.23MiB/s ETA 00:00
-[download] 100% of    4.04MiB in 00:00:00 at 7.44MiB/s   
-[ExtractAudio] Destination: 03 Sitiakes Kondilies.mp3
+            [download] 02 Pare Karotsa Ki Ela.mp3 has already been downloaded
+            or
+            [download] Destination: 03 Sitiakes Kondilies.webm  
+            [download]   0.0% of    4.04MiB at  353.77KiB/s ETA 00:11
+            [download]   0.1% of    4.04MiB at    1.04MiB/s ETA 00:03
+                        ..
+            [download]  98.9% of    4.04MiB at    9.27MiB/s ETA 00:00
+            [download] 100.0% of    4.04MiB at    9.23MiB/s ETA 00:00
+            [download] 100% of    4.04MiB in 00:00:00 at 7.44MiB/s   
+            [ExtractAudio] Destination: 03 Sitiakes Kondilies.mp3
              */
-            //[download] 100%
-            //[download] 100.0%
-            var m = Regex.Match(status, @"\[download\]\s+(?<perc>\d+(\.\d+)?)%");
-            if (m.Success)
+
+            var matchPartialDownload = Regex.Match(status, @"\[download\]\s+(?<perc>\d+(\.\d+)?)%");
+            if (matchPartialDownload.Success)
             {
-                float partialPercentage = float.Parse(m.Groups["perc"].Value, EN) / 100.0f;
+                float partialPercentage = float.Parse(matchPartialDownload.Groups["perc"].Value, EN) / 100.0f;
                 int percentage = (int)(100.0f * ((currentIndex - 1) + partialPercentage) / count);
                 DownloadProgressChanged?.Invoke(this, new ProgressChangedEventArgs(percentage, null));
                 return;
             }
 
             //[download] Downloading item 1 of 9
-            m = Regex.Match(status, @"\[download\] Downloading item\s+(?<i>\d+)");
-            if (m.Success)
+            var matchItemDownload = Regex.Match(status, @"\[download\] Downloading item\s+(?<i>\d+)");
+            if (matchItemDownload.Success)
             {
-                currentIndex = int.Parse(m.Groups["i"].Value);
+                currentIndex = int.Parse(matchItemDownload.Groups["i"].Value);
                 int percentage = (int)(100.0f * (currentIndex - 1) / count);
                 DownloadProgressChanged?.Invoke(this, new ProgressChangedEventArgs(percentage, null));
 
@@ -194,9 +157,7 @@ or
                 return;
             }
 
-            foreach (string label in IgnoredLabels) if (status.StartsWith(label)) return;
-
-            if (status.StartsWith("[ExtractAudio]"))
+            if (status.StartsWith("[ExtractAudio] Destination"))
             {
                 //[ExtractAudio] Destination: 09 Irakliotikos Pidihtos.mp3
                 StatusChanged?.Invoke(this, new StatusChangedEventArgs($"Converting {currentIndex} of {count}..."));
@@ -206,19 +167,12 @@ or
             LogStatus?.Invoke(this, new StatusChangedEventArgs(status));
         };
 
-        DownloadStarted?.Invoke(this, EventArgs.Empty);
-
-        // Start the process
-        process.Start();
-
-        // Begin asynchronous reading of the standard output stream
-        process.BeginOutputReadLine();
-
         try
         {
-            await process.WaitForExitAsync(cancellationToken);
+            DownloadStarted?.Invoke(this, EventArgs.Empty);
 
-            if (process.ExitCode == 0)
+            int exitCode = await process.RunWithEvents(_exePath, arguments, targetDirectory, cancellationToken);
+            if (exitCode == 0)
                 Downloaded?.Invoke(this, EventArgs.Empty);
             else
                 DownloadFailed?.Invoke(this, EventArgs.Empty);
@@ -226,8 +180,6 @@ or
         catch (TaskCanceledException)
         {
             DownloadCancelled?.Invoke(this, EventArgs.Empty);
-            Finished?.Invoke(this, EventArgs.Empty);
-            return;
         }
         finally
         {
@@ -271,40 +223,21 @@ or
         return url;
     }
 
+
+    #region Video/playlist properties
+
     public async Task<int?> GetPlaylistCount(string playlistId)
     {
-        string arguments = $"{playlistId} -I0 -O playlist:playlist_count";
+        string? output = await _process.Run(_exePath, $"{playlistId} -I0 -O playlist:playlist_count");
+        if (output is null) return null;
 
-        ProcessStarter starter = Program.ServiceProvider!.GetRequiredService<ProcessStarter>();
-        var output = await starter.RunAndReturnOutput(_exePath, arguments);
-
-        //error if not playlist 
-        /*
-yt-dlp : WARNING: [youtube] Skipping player responses from android clients (got player responses for video "aQvGIIdgFDM
-" instead of "wAo6lUU6Zxk")
-         */
-
-        if (string.IsNullOrWhiteSpace(output.StandardOutput)) return 0;
-
-        //a plain number should be returned on success (or else the return is undefined)
-        bool parsed = int.TryParse(output.StandardOutput.Trim(), out int count);
+        bool parsed = int.TryParse(output, out int count);
         return parsed ? count : null;
     }
 
-    public async Task<string?> GetFilename(string videoId)
-    {
-        string arguments = $" --get-filename -- {videoId}";
+    public async Task<string?> GetFilename(string videoId) => await _process.Run(_exePath, $" --get-filename -- {videoId}");
+    
+    public async Task<string?> GetTitle(string videoId) =>  await _process.Run(_exePath, $" --get-title -- {videoId}");
 
-        ProcessStarter starter = Program.ServiceProvider!.GetRequiredService<ProcessStarter>();
-        var output = await starter.RunAndReturnOutput(_exePath, arguments);
-        return string.IsNullOrWhiteSpace(output.StandardOutput) ? null : output.StandardOutput.Trim();
-    }
-    public async Task<string?> GetTitle(string videoId)
-    {
-        string arguments = $" --get-title -- {videoId}";
-
-        ProcessStarter starter = Program.ServiceProvider!.GetRequiredService<ProcessStarter>();
-        var output = await starter.RunAndReturnOutput(_exePath, arguments);
-        return string.IsNullOrWhiteSpace(output.StandardOutput) ? null : output.StandardOutput.Trim();
-    }
+    #endregion
 }
