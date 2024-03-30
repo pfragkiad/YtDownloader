@@ -13,7 +13,7 @@ namespace YtDownloader
         public MainForm(Downloader downloader)
         {
             InitializeComponent();
-            //TODO: format of exported file 
+            //TODO: format of exported file ?
 
             var settings = YtSettings.Default;
             string lastFolder = settings.Folder;

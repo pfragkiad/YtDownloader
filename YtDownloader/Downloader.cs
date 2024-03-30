@@ -35,7 +35,7 @@ public class Downloader
     public event EventHandler? DownloadStarted;
     public event EventHandler? Downloaded;
     public event EventHandler? DownloadFailed;
-    public event EventHandler DownloadCancelled;
+    public event EventHandler? DownloadCancelled;
     public event EventHandler? Finished;
     public event ProgressChangedEventHandler? DownloadProgressChanged;
     public event EventHandler<StatusChangedEventArgs>? StatusChanged;
@@ -66,7 +66,6 @@ public class Downloader
             UseShellExecute = false,
             RedirectStandardOutput = true,
             WorkingDirectory = targetDirectory
-
         };
 
         //Cursor.Current = Cursors.WaitCursor;
