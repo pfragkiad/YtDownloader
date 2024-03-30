@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 namespace YtDownloader;
 
-
+public readonly struct ProcessOutput
 {
     public string StandardOutput { get; init; }
     public string StandardError { get; init; }
@@ -15,7 +15,7 @@ public class ProcessStarter
     public async Task<ProcessOutput> RunAndReturnOutput(
         string executablePath,
         string arguments,
-        string workingDirectory)
+        string workingDirectory="")
     {
         ProcessStartInfo startInfo = new()
         {

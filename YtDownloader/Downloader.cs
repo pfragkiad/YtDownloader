@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.ComponentModel;
 using System.Configuration.Internal;
@@ -42,7 +43,7 @@ public class Downloader
 
 
     public async Task Download(
-        string url,
+        string urlOrId,
         bool isPlaylist,
         string targetDirectory,
         CancellationToken cancellationToken = default)
@@ -50,11 +51,19 @@ public class Downloader
         if (!Directory.Exists(targetDirectory))
             Directory.CreateDirectory(targetDirectory);
 
-        url = GetCleanUrlOrId(url, isPlaylist);
+        if (urlOrId.Contains("/"))
+            urlOrId = GetId(urlOrId, isPlaylist);
+        else
+        {
+            //force playlist validation if the plain url is given
+            int? count = await GetPlaylistCount(urlOrId);
+            if ( (count ?? 0) == 0) isPlaylist = false;
+        }
+
 
         string arguments = !isPlaylist ?
-            $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" -- {url}" :
-            $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {url}";
+            $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" -- {urlOrId}" :
+            $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {urlOrId}";
 
 
         // Create a new process start info
@@ -157,7 +166,7 @@ public class Downloader
         Finished?.Invoke(this, EventArgs.Empty);
     }
 
-    private static string GetCleanUrlOrId(string url, bool isPlaylist)
+    private static string GetId(string url, bool isPlaylist)
     {
         if (isPlaylist)
         {
@@ -191,5 +200,26 @@ public class Downloader
         }
 
         return url;
+    }
+
+    public async Task<int?> GetPlaylistCount(string playlistId)
+    {
+        string arguments = $"{playlistId} -I0 -O playlist:playlist_count";
+
+        ProcessStarter starter = Program.ServiceProvider!.GetRequiredService<ProcessStarter>();
+
+        var output = await starter.RunAndReturnOutput(_exePath, arguments);
+
+        //error if not playlist 
+        /*
+yt-dlp : WARNING: [youtube] Skipping player responses from android clients (got player responses for video "aQvGIIdgFDM
+" instead of "wAo6lUU6Zxk")
+         */
+
+        if (string.IsNullOrWhiteSpace(output.StandardOutput)) return 0;
+
+        //a plain number should be returned on success (or else the return is undefined)
+        bool parsed =  int.TryParse(output.StandardOutput.Trim(), out int count);
+        return parsed ? count : null;
     }
 }

@@ -20,7 +20,9 @@ namespace YtDownloader
                 {
                     services
                         .AddSingleton<Downloader>()
+                        .AddTransient<ProcessStarter>()
                         .AddSingleton<MainForm>();
+                        
                 }).Build();
             ServiceProvider = _host.Services;
 
