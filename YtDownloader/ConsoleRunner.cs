@@ -9,9 +9,9 @@ public readonly struct ProcessOutput
     public int ExitCode { get; init; }
 }
 
-public class ProcessStarter
+public class ConsoleRunner
 {
-    public async Task<ProcessOutput> RunAndReturnOutput(
+    public async Task<ProcessOutput> RunAndGetOutputAndError(
         string executablePath,
         string arguments,
         string workingDirectory = "")
@@ -50,7 +50,7 @@ public class ProcessStarter
         string arguments,
         string workingDirectory = "")
     {
-        var output = await RunAndReturnOutput(executablePath, arguments, workingDirectory);
+        var output = await RunAndGetOutputAndError(executablePath, arguments, workingDirectory);
         return string.IsNullOrWhiteSpace(output.StandardOutput) ? null : output.StandardOutput.Trim();
     }
 

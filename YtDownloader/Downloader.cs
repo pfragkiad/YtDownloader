@@ -22,11 +22,11 @@ public class Downloader
     readonly static CultureInfo EN = CultureInfo.GetCultureInfo("en-US");
 #pragma warning restore IDE1006 // Naming Styles
 
-    readonly string _exePath;
+    private readonly string _exePath;
     private readonly IServiceProvider _provider;
-    private readonly ProcessStarter _process;
+    private readonly ConsoleRunner _process;
 
-    public Downloader(IServiceProvider provider, IConfiguration configuration, ProcessStarter process)
+    public Downloader(IServiceProvider provider, IConfiguration configuration, ConsoleRunner process)
     {
         _exePath = configuration!["yt-dlp"]!;
         _provider = provider;
@@ -40,7 +40,6 @@ public class Downloader
     public event EventHandler? Finished;
     public event ProgressChangedEventHandler? DownloadProgressChanged;
     public event EventHandler<StatusChangedEventArgs>? LogStatus;
-
     public event EventHandler<StatusChangedEventArgs>? StatusChanged;
 
     /*
@@ -114,7 +113,7 @@ public class Downloader
             $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {urlOrId}";
 
 
-        var process = _provider.GetRequiredService<ProcessStarter>();
+        var process = _provider.GetRequiredService<ConsoleRunner>();
 
         process.OutputReceived += (s, args) =>
         {

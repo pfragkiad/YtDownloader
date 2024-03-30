@@ -10,7 +10,7 @@ namespace YtDownloader
         public static IConfigurationRoot? Configuration;
 
         private static IHost? _host;
-        public static IServiceProvider? ServiceProvider;
+        //public static IServiceProvider? ServiceProvider;
 
         [STAThread]
         static void Main()
@@ -20,11 +20,11 @@ namespace YtDownloader
                 {
                     services
                         .AddSingleton<Downloader>()
-                        .AddTransient<ProcessStarter>()
+                        .AddTransient<ConsoleRunner>()
                         .AddSingleton<MainForm>();
                         
                 }).Build();
-            ServiceProvider = _host.Services;
+            //ServiceProvider = _host.Services;
 
             Configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -35,7 +35,7 @@ namespace YtDownloader
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
-            Application.Run(ServiceProvider.GetRequiredService<MainForm>());
+            Application.Run(_host.Services.GetRequiredService<MainForm>());
         }
     }
 }
