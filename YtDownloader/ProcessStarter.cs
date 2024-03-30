@@ -4,7 +4,6 @@ using System.Diagnostics;
 namespace YtDownloader;
 
 
-public readonly struct ProcessOutput
 {
     public string StandardOutput { get; init; }
     public string StandardError { get; init; }
@@ -12,6 +11,7 @@ public readonly struct ProcessOutput
 
 public class ProcessStarter
 {
+
     public async Task<ProcessOutput> RunAndReturnOutput(
         string executablePath,
         string arguments,
