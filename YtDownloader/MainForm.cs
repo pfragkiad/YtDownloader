@@ -26,12 +26,13 @@ namespace YtDownloader
             _downloader.DownloadCancelled += Downloader_DownloadCancelled;
             _downloader.Finished += Downloader_Finished;
             _downloader.DownloadProgressChanged += Downloader_DownloadProgressChanged;
-            _downloader.StatusChanged += Downloader_StatusChanged;
+            _downloader.LogStatus += Downloader_StatusChanged;
             _downloader.DownloadFailed += Downloader_DownloadFailed;
+            _downloader.StatusChanged += Downloader_PlaylistItemDownloadStarted;
         }
 
-
         #region Downloader events
+
         private void Downloader_StatusChanged(object? sender, StatusChangedEventArgs e)
         {
             BeginInvoke(() =>
@@ -39,6 +40,14 @@ namespace YtDownloader
                 textBoxOutput.AppendText($"{e.Status}\r\n");
             });
         }
+        private void Downloader_PlaylistItemDownloadStarted(object? sender, StatusChangedEventArgs e)
+        {
+            BeginInvoke(() =>
+            {
+                tstStatus.Text = e.Status;
+            });
+        }
+
 
         private void Downloader_DownloadProgressChanged(object? sender, System.ComponentModel.ProgressChangedEventArgs e)
         {

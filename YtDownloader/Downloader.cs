@@ -39,8 +39,35 @@ public class Downloader
     public event EventHandler? DownloadCancelled;
     public event EventHandler? Finished;
     public event ProgressChangedEventHandler? DownloadProgressChanged;
+    public event EventHandler<StatusChangedEventArgs>? LogStatus;
+
     public event EventHandler<StatusChangedEventArgs>? StatusChanged;
 
+    /*
+[youtube] Extracting URL: https://www.youtube.com/watch?v=C2tN_YDZsdI
+[youtube] C2tN_YDZsdI: Downloading webpage
+[youtube] C2tN_YDZsdI: Downloading ios player API JSON
+[youtube] C2tN_YDZsdI: Downloading android player API JSON
+[youtube] C2tN_YDZsdI: Downloading m3u8 information
+[info] C2tN_YDZsdI: Downloading 1 format(s): 251
+[download] Destination: 09 Irakliotikos Pidihtos.webm
+...
+[ExtractAudio] Destination: 09 Irakliotikos Pidihtos.mp3
+Deleting original file 09 Irakliotikos Pidihtos.webm (pass -k to keep)
+ */
+
+    /* (playlist specific)
+    [youtube:playlist] Extracting URL: OLAK5uy_k3vbo8oJfA9SWuKNTcE6ftF-1HCNUM-Hk
+    [youtube:tab] Extracting URL: https://www.youtube.com/playlist?list=OLAK5uy_k3vbo8oJfA9SWuKNTcE6ftF-1HCNUM-Hk
+    [youtube:tab] OLAK5uy_k3vbo8oJfA9SWuKNTcE6ftF-1HCNUM-Hk: Downloading webpage
+    [youtube:tab] OLAK5uy_k3vbo8oJfA9SWuKNTcE6ftF-1HCNUM-Hk: Redownloading playlist API JSON with unavailable videos
+    [download] Downloading playlist: Hori Ke Tragoudia Tis Kritis
+    [youtube:tab] Playlist Hori Ke Tragoudia Tis Kritis: Downloading 9 items of 9
+     */
+
+    //[ExtractAudio] Not converting audio 01 Irakliotikes Kondilies.mp3; file is already in target format mp3
+
+    List<string> IgnoredLabels = ["[youtube]", "[info]", "Deleting original", "[ExtractAudio] Not converting", "[youtube:tab]", "[youtube:playlist]"];
 
     public async Task Download(
         string urlOrId,
@@ -124,6 +151,7 @@ public class Downloader
 [youtube] eREL7WJm2Po: Downloading android player API JSON
 [youtube] eREL7WJm2Po: Downloading m3u8 information
 [info] eREL7WJm2Po: Downloading 1 format(s): 251
+
 [download] 02 Pare Karotsa Ki Ela.mp3 has already been downloaded
 or
 [download] Destination: 03 Sitiakes Kondilies.webm  
@@ -151,25 +179,32 @@ or
                 float partialPercentage = float.Parse(m.Groups["perc"].Value, EN) / 100.0f;
                 int percentage = (int)(100.0f * ((currentIndex - 1) + partialPercentage) / count);
                 DownloadProgressChanged?.Invoke(this, new ProgressChangedEventArgs(percentage, null));
+                return;
             }
-            else
+
+            //[download] Downloading item 1 of 9
+            m = Regex.Match(status, @"\[download\] Downloading item\s+(?<i>\d+)");
+            if (m.Success)
             {
-                //[download] Downloading item 1 of 9
-                var m2 = Regex.Match(status, @"\[download\] Downloading item\s+(?<i>\d+)");
-                if (m2.Success)
-                {
-                    currentIndex = int.Parse(m2.Groups["i"].Value);
-                    int percentage = (int)(100.0f * (currentIndex - 1) / count);
-                    DownloadProgressChanged?.Invoke(this, new ProgressChangedEventArgs(percentage, null));
+                currentIndex = int.Parse(m.Groups["i"].Value);
+                int percentage = (int)(100.0f * (currentIndex - 1) / count);
+                DownloadProgressChanged?.Invoke(this, new ProgressChangedEventArgs(percentage, null));
 
-                }
-                else
-                    StatusChanged?.Invoke(this, new StatusChangedEventArgs(status));
+                StatusChanged?.Invoke(this, new StatusChangedEventArgs($"Downloading {currentIndex} of {count}..."));
+                return;
             }
-        };
 
-        //progressBar1.Value = 0;
-        //progressBar1.Visible = true;
+            foreach (string label in IgnoredLabels) if (status.StartsWith(label)) return;
+
+            if (status.StartsWith("[ExtractAudio]"))
+            {
+                //[ExtractAudio] Destination: 09 Irakliotikos Pidihtos.mp3
+                StatusChanged?.Invoke(this, new StatusChangedEventArgs($"Converting {currentIndex} of {count}..."));
+                return;
+            }
+
+            LogStatus?.Invoke(this, new StatusChangedEventArgs(status));
+        };
 
         DownloadStarted?.Invoke(this, EventArgs.Empty);
 
@@ -181,9 +216,8 @@ or
 
         try
         {
-            // Wait for the process to exit
             await process.WaitForExitAsync(cancellationToken);
-            //// Display the exit code
+
             if (process.ExitCode == 0)
                 Downloaded?.Invoke(this, EventArgs.Empty);
             else
@@ -198,10 +232,7 @@ or
         finally
         {
             Finished?.Invoke(this, EventArgs.Empty);
-
         }
-
-
     }
 
     private static string GetId(string url, bool isPlaylist)
