@@ -4,19 +4,75 @@ using System.Text.RegularExpressions;
 
 namespace YtDownloader
 {
-    public partial class Form1 : Form
+    public partial class MainForm : Form
     {
-        public Form1()
+        static CultureInfo EN = CultureInfo.GetCultureInfo("en-US");
+
+        private readonly Downloader _downloader;
+
+        public MainForm(Downloader downloader)
         {
             InitializeComponent();
-            //TODO: yt-dlp in settings ? or internal exe
             //TODO: format of exported file 
 
             var settings = YtSettings.Default;
             string lastFolder = settings.Folder;
             if (!string.IsNullOrWhiteSpace(lastFolder) && Directory.Exists(lastFolder))
                 txtTarget.Text = lastFolder;
+
+            _downloader = downloader;
+            _downloader.DownloadStarted += Downloader_DownloadStarted;
+            _downloader.Downloaded += Downloader_Downloaded;
+            _downloader.Finished += Downloader_Finished;
+            _downloader.DownloadProgressChanged += Downloader_DownloadProgressChanged;
+            _downloader.StatusChanged += Downloader_StatusChanged;
+            _downloader.DownloadFailed += Downloader_DownloadFailed;
         }
+
+        #region Downloader events
+        private void Downloader_StatusChanged(object? sender, StatusChangedEventArgs e)
+        {
+            BeginInvoke(() =>
+            {
+                textBoxOutput.AppendText($"{e.Status}\r\n");
+            });
+        }
+
+        private void Downloader_DownloadProgressChanged(object? sender, System.ComponentModel.ProgressChangedEventArgs e)
+        {
+            BeginInvoke(() =>
+            {
+                progressBar1.Value = e.ProgressPercentage;
+            });
+        }
+
+        private void Downloader_Finished(object? sender, EventArgs e)
+        {
+            progressBar1.Visible = false;
+            Application.UseWaitCursor = false;
+            Cursor.Current = Cursors.Default;
+        }
+
+        private void Downloader_DownloadStarted(object? sender, EventArgs e)
+        {
+            Cursor.Current = Cursors.WaitCursor;
+            Application.UseWaitCursor = true;
+
+            tstStatus.Text = "Downloading...";
+
+            progressBar1.Value = 0;
+            progressBar1.Visible = true;
+        }
+
+        private void Downloader_Downloaded(object? sender, EventArgs e)
+        {
+            tstStatus.Text = "Successfully downloaded";
+        }
+        private void Downloader_DownloadFailed(object? sender, EventArgs e)
+        {
+            tstStatus.Text = "Download failed.";
+        }
+        #endregion
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
@@ -31,7 +87,6 @@ namespace YtDownloader
             base.OnFormClosing(e);
         }
 
-        static CultureInfo EN = CultureInfo.GetCultureInfo("en-US");
 
         private async void btnDownload_Click(object sender, EventArgs e)
         {
@@ -45,9 +100,9 @@ namespace YtDownloader
 
             if (chkIsPlaylist.Checked)
             {
-                if (url.Contains("youtube"))
+                if (url.Contains("list=") )
                 {
-                    var m = Regex.Match(url, "list=(?<id>[a-zA-Z0-9_-]{11})");
+                    var m = Regex.Match(url, "list=(?<id>[a-zA-Z0-9_-]+)");
                     if (m.Success)
                         url = m.Groups["id"].Value;
                 }
@@ -80,72 +135,8 @@ namespace YtDownloader
 
             if (!Directory.Exists(txtTarget.Text)) Directory.CreateDirectory(txtTarget.Text);
 
-            await Download(exePath, arguments);
-        }
-
-        private async Task Download(string exePath, string arguments)
-        {
-            // Create a new process start info
-            ProcessStartInfo startInfo = new()
-            {
-                FileName = exePath,
-                Arguments = arguments,
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                WorkingDirectory = txtTarget.Text
-
-            };
-
-            Cursor.Current = Cursors.WaitCursor;
-            Application.UseWaitCursor = true;
-
-            // Create a new process
-            using (Process process = new())
-            {
-                process.StartInfo = startInfo;
-
-                // Event handler for capturing standard output
-                process.OutputDataReceived += (s, args) =>
-                {
-                    //TODO: Track completion from process output?
-                    if (!string.IsNullOrEmpty(args.Data))
-                    {
-                        // Append the output to the TextBox
-                        BeginInvoke(() =>
-                        {
-                            //[download] 100%
-                            //[download] 100.0%
-                            var m = Regex.Match(args.Data, @"\[download\]\s+(?<perc>\d+(\.\d+)?)%");
-                            if (m.Success)
-                                progressBar1.Value = (int)float.Parse(m.Groups["perc"].Value, EN);
-                            else
-                                textBoxOutput.AppendText(args.Data + Environment.NewLine);
-                            //   Application.DoEvents();
-                        });
-                    }
-                };
-                progressBar1.Value = 0;
-                progressBar1.Visible = true;
-
-
-                // Start the process
-                process.Start();
-
-                // Begin asynchronous reading of the standard output stream
-                process.BeginOutputReadLine();
-
-                // Wait for the process to exit
-                await process.WaitForExitAsync();
-
-                // Display the exit code
-                textBoxOutput.AppendText("Process exited with code: " + process.ExitCode + Environment.NewLine);
-
-                progressBar1.Visible = false;
-            }
-
-            Application.UseWaitCursor = false;
-            Cursor.Current = Cursors.Default;
+            //await Download(exePath, arguments);
+            await _downloader.Download(arguments, txtTarget.Text);
         }
 
         private void btnClear_Click(object sender, EventArgs e)

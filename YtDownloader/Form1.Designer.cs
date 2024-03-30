@@ -1,6 +1,6 @@
 ﻿namespace YtDownloader
 {
-    partial class Form1
+    partial class MainForm
     {
         /// <summary>
         ///  Required designer variable.
@@ -37,6 +37,9 @@
             label1 = new Label();
             label2 = new Label();
             chkIsPlaylist = new CheckBox();
+            statusStrip1 = new StatusStrip();
+            tstStatus = new ToolStripStatusLabel();
+            statusStrip1.SuspendLayout();
             SuspendLayout();
             // 
             // textBox1
@@ -66,7 +69,7 @@
             textBoxOutput.Multiline = true;
             textBoxOutput.Name = "textBoxOutput";
             textBoxOutput.ScrollBars = ScrollBars.Both;
-            textBoxOutput.Size = new Size(556, 266);
+            textBoxOutput.Size = new Size(556, 242);
             textBoxOutput.TabIndex = 4;
             // 
             // btnClear
@@ -83,7 +86,7 @@
             // progressBar1
             // 
             progressBar1.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            progressBar1.Location = new Point(42, 486);
+            progressBar1.Location = new Point(42, 465);
             progressBar1.Name = "progressBar1";
             progressBar1.Size = new Size(556, 23);
             progressBar1.TabIndex = 3;
@@ -126,12 +129,28 @@
             chkIsPlaylist.Text = "Playlist";
             chkIsPlaylist.UseVisualStyleBackColor = true;
             // 
-            // Form1
+            // statusStrip1
+            // 
+            statusStrip1.Items.AddRange(new ToolStripItem[] { tstStatus });
+            statusStrip1.Location = new Point(0, 499);
+            statusStrip1.Name = "statusStrip1";
+            statusStrip1.Size = new Size(630, 22);
+            statusStrip1.TabIndex = 6;
+            statusStrip1.Text = "statusStrip1";
+            // 
+            // tstStatus
+            // 
+            tstStatus.Name = "tstStatus";
+            tstStatus.Size = new Size(23, 17);
+            tstStatus.Text = "OK";
+            // 
+            // MainForm
             // 
             AcceptButton = btnDownload;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(630, 521);
+            Controls.Add(statusStrip1);
             Controls.Add(chkIsPlaylist);
             Controls.Add(label2);
             Controls.Add(label1);
@@ -141,8 +160,10 @@
             Controls.Add(btnDownload);
             Controls.Add(txtTarget);
             Controls.Add(textBox1);
-            Name = "Form1";
+            Name = "MainForm";
             Text = "YouTubino MP3";
+            statusStrip1.ResumeLayout(false);
+            statusStrip1.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -158,5 +179,7 @@
         private Label label1;
         private Label label2;
         private CheckBox chkIsPlaylist;
+        private StatusStrip statusStrip1;
+        private ToolStripStatusLabel tstStatus;
     }
 }
