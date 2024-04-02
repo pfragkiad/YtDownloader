@@ -16,9 +16,13 @@ namespace YtDownloader
             //TODO: format of exported file ?
 
             var settings = YtSettings.Default;
-            string lastFolder = settings.Folder;
-            if (!string.IsNullOrWhiteSpace(lastFolder) && Directory.Exists(lastFolder))
-                txtTarget.Text = lastFolder;
+            string[] lastFolders = settings.Folder.Split("\n");
+            foreach (string lastFolder in lastFolders)
+                if (Directory.Exists(lastFolder))
+                    cboTarget.Items.Add(lastFolder);
+            if (cboTarget.Items.Count > 0)
+                cboTarget.SelectedIndex = 0;
+
 
             _downloader = downloader;
             _downloader.DownloadStarted += Downloader_DownloadStarted;
@@ -94,12 +98,9 @@ namespace YtDownloader
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             var settings = YtSettings.Default;
-            string lastFolder = txtTarget.Text;
-            if (!string.IsNullOrWhiteSpace(lastFolder) && Directory.Exists(lastFolder))
-            {
-                settings.Folder = lastFolder;
-                settings.Save();
-            }
+            string lastFolders = string.Join("\n", cboTarget.Items.Cast<string>());
+            settings.Folder = lastFolders;
+            settings.Save();
 
             base.OnFormClosing(e);
         }
@@ -119,8 +120,12 @@ namespace YtDownloader
 
             alreadyDownloading = true;
             source = new();
-            await _downloader.Download(url, chkIsPlaylist.Checked, txtTarget.Text, source.Token);
+            await _downloader.Download(url, chkIsPlaylist.Checked, cboTarget.Text, source.Token);
             source = null;
+
+            if (cboTarget.Items.IndexOf(cboTarget.Text) == -1)
+                cboTarget.Items.Insert(0, cboTarget.Text);
+
             alreadyDownloading = false;
         }
 

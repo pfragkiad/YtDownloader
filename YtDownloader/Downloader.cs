@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using ConsoleRunnerLib;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -24,9 +27,9 @@ public class Downloader
 
     private readonly string _exePath;
     private readonly IServiceProvider _provider;
-    private readonly ConsoleRunner _process;
+    private readonly IConsoleRunner _process;
 
-    public Downloader(IServiceProvider provider, IConfiguration configuration, ConsoleRunner process)
+    public Downloader(IServiceProvider provider, IConfiguration configuration, IConsoleRunner process)
     {
         _exePath = configuration!["yt-dlp"]!;
         _provider = provider;
@@ -113,9 +116,9 @@ public class Downloader
             $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {urlOrId}";
 
 
-        var process = _provider.GetRequiredService<ConsoleRunner>();
+        var process = _provider.GetConsoleRunner();
 
-        process.OutputReceived += (s, args) =>
+        process.OutputReceived += (object? s, DataReceivedEventArgs args) =>
         {
             string? status = args.Data;
             if (string.IsNullOrEmpty(status)) return;
@@ -237,6 +240,8 @@ public class Downloader
     public async Task<string?> GetFilename(string videoId) => await _process.Run(_exePath, $" --get-filename -- {videoId}");
     
     public async Task<string?> GetTitle(string videoId) =>  await _process.Run(_exePath, $" --get-title -- {videoId}");
+
+
 
     #endregion
 }

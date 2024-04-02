@@ -33,12 +33,12 @@
             textBoxOutput = new TextBox();
             btnClear = new Button();
             progressBar1 = new ProgressBar();
-            txtTarget = new TextBox();
             label1 = new Label();
             label2 = new Label();
             chkIsPlaylist = new CheckBox();
             statusStrip1 = new StatusStrip();
             tstStatus = new ToolStripStatusLabel();
+            cboTarget = new ComboBox();
             statusStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -92,15 +92,6 @@
             progressBar1.TabIndex = 3;
             progressBar1.Visible = false;
             // 
-            // txtTarget
-            // 
-            txtTarget.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            txtTarget.Location = new Point(42, 154);
-            txtTarget.Name = "txtTarget";
-            txtTarget.Size = new Size(556, 23);
-            txtTarget.TabIndex = 1;
-            txtTarget.Text = "C:\\tools\\mp3";
-            // 
             // label1
             // 
             label1.AutoSize = true;
@@ -144,12 +135,22 @@
             tstStatus.Size = new Size(23, 17);
             tstStatus.Text = "OK";
             // 
+            // cboTarget
+            // 
+            cboTarget.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            cboTarget.FormattingEnabled = true;
+            cboTarget.Location = new Point(42, 165);
+            cboTarget.Name = "cboTarget";
+            cboTarget.Size = new Size(556, 23);
+            cboTarget.TabIndex = 7;
+            // 
             // MainForm
             // 
             AcceptButton = btnDownload;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(630, 521);
+            Controls.Add(cboTarget);
             Controls.Add(statusStrip1);
             Controls.Add(chkIsPlaylist);
             Controls.Add(label2);
@@ -158,7 +159,6 @@
             Controls.Add(textBoxOutput);
             Controls.Add(btnClear);
             Controls.Add(btnDownload);
-            Controls.Add(txtTarget);
             Controls.Add(textBox1);
             Name = "MainForm";
             Text = "YouTubino MP3";
@@ -175,11 +175,11 @@
         private TextBox textBoxOutput;
         private Button btnClear;
         private ProgressBar progressBar1;
-        private TextBox txtTarget;
         private Label label1;
         private Label label2;
         private CheckBox chkIsPlaylist;
         private StatusStrip statusStrip1;
         private ToolStripStatusLabel tstStatus;
+        private ComboBox cboTarget;
     }
 }
