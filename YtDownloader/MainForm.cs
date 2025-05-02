@@ -57,7 +57,7 @@ namespace YtDownloader
         {
             BeginInvoke(() =>
             {
-                progressBar1.Value = e.ProgressPercentage;
+                progressBar1.Value = Math.Min(100,e.ProgressPercentage);
             });
         }
 
@@ -133,6 +133,7 @@ namespace YtDownloader
         {
             textBox1.Clear();
             textBoxOutput.Clear();
+            tstStatus.Text = "Ready";
         }
     }
 }

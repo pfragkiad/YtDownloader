@@ -97,7 +97,7 @@
             label1.AutoSize = true;
             label1.Location = new Point(42, 136);
             label1.Name = "label1";
-            label1.Size = new Size(92, 15);
+            label1.Size = new Size(93, 15);
             label1.TabIndex = 4;
             label1.Text = "Target directory:";
             // 
@@ -106,7 +106,7 @@
             label2.AutoSize = true;
             label2.Location = new Point(42, 29);
             label2.Name = "label2";
-            label2.Size = new Size(184, 15);
+            label2.Size = new Size(183, 15);
             label2.TabIndex = 4;
             label2.Text = "Video/Playlist URL/ID/mixed URL:";
             // 
@@ -132,8 +132,8 @@
             // tstStatus
             // 
             tstStatus.Name = "tstStatus";
-            tstStatus.Size = new Size(23, 17);
-            tstStatus.Text = "OK";
+            tstStatus.Size = new Size(39, 17);
+            tstStatus.Text = "Ready";
             // 
             // cboTarget
             // 

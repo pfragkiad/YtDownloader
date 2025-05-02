@@ -103,13 +103,16 @@ public class Downloader
         {
             urlOrId = GetId(urlOrId, isPlaylist);
         }
-        else
-        {
-            //force playlist validation if the plain url is given
-            int? returnedCount = await GetPlaylistCount(urlOrId);
-            isPlaylist = (returnedCount ?? 0) > 0;
-            if (isPlaylist) count = returnedCount!.Value;
-        }
+
+
+        //force playlist validation if the plain url is given
+        //int? returnedCount = await GetPlaylistCount(urlOrId);
+        //isPlaylist = (returnedCount ?? 0) > 0;
+        //if (isPlaylist) count = returnedCount!.Value;
+        if (isPlaylist)
+            count = await GetPlaylistCount(urlOrId) ?? 1;
+         
+        
 
         string arguments = !isPlaylist ?
             $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" -- {urlOrId}" :
@@ -122,7 +125,7 @@ public class Downloader
         {
             string? status = args.Data;
             if (string.IsNullOrEmpty(status)) return;
-            
+
             foreach (string label in IgnoredLabels) if (status.StartsWith(label)) return;
 
             /*
@@ -238,8 +241,8 @@ public class Downloader
     }
 
     public async Task<string?> GetFilename(string videoId) => await _process.Run(_exePath, $" --get-filename -- {videoId}");
-    
-    public async Task<string?> GetTitle(string videoId) =>  await _process.Run(_exePath, $" --get-title -- {videoId}");
+
+    public async Task<string?> GetTitle(string videoId) => await _process.Run(_exePath, $" --get-title -- {videoId}");
 
 
 
