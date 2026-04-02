@@ -13,6 +13,7 @@ namespace YtDownloader
         public MainForm(Downloader downloader)
         {
             InitializeComponent();
+            Load += MainForm_Load;
             //TODO: format of exported file ?
 
             var settings = YtSettings.Default;
@@ -33,6 +34,33 @@ namespace YtDownloader
             _downloader.LogStatus += Downloader_StatusChanged;
             _downloader.DownloadFailed += Downloader_DownloadFailed;
             _downloader.StatusChanged += Downloader_PlaylistItemDownloadStarted;
+        }
+
+        private async void MainForm_Load(object? sender, EventArgs e)
+        {
+            tstYtVersion.Text = "yt-dlp: checking...";
+
+            try
+            {
+                string? currentVersion = await _downloader.GetVersion();
+                string? latestVersion = await _downloader.GetLatestVersion();
+
+                if (string.IsNullOrWhiteSpace(currentVersion))
+                {
+                    tstYtVersion.Text = "yt-dlp: unknown";
+                    return;
+                }
+
+                tstYtVersion.Text = string.IsNullOrWhiteSpace(latestVersion)
+                    ? $"yt-dlp: {currentVersion}"
+                    : currentVersion == latestVersion
+                        ? $"yt-dlp: {currentVersion}"
+                        : $"yt-dlp: {currentVersion} (latest: {latestVersion})";
+            }
+            catch
+            {
+                tstYtVersion.Text = "yt-dlp: unavailable";
+            }
         }
 
         #region Downloader events
@@ -120,7 +148,60 @@ namespace YtDownloader
 
             alreadyDownloading = true;
             source = new();
-            await _downloader.Download(url, chkIsPlaylist.Checked, cboTarget.Text, source.Token);
+
+            bool trimVideo = chkTrimVideo.Checked;
+            if(!trimVideo)
+                await _downloader.Download(url, chkIsPlaylist.Checked, cboTarget.Text, source.Token);
+            else
+            {
+                // Parse optional start/end times in hh:mm:ss
+                TimeSpan? start = null;
+                TimeSpan? end = null;
+
+                string fromText = txtFrom.Text.Trim();
+                string toText = txtTo.Text.Trim();
+
+                // Accept empty values; when provided, must be hh:mm:ss
+                if (!string.IsNullOrEmpty(fromText))
+                {
+                    if (TimeSpan.TryParseExact(fromText, @"hh\:mm\:ss", EN, out var tsFrom))
+                        start = tsFrom;
+                    else
+                    {
+                        MessageBox.Show(this, "Invalid start time. Use hh:mm:ss.", "Input Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        alreadyDownloading = false;
+                        return;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(toText))
+                {
+                    if (TimeSpan.TryParseExact(toText, @"hh\:mm\:ss", EN, out var tsTo))
+                        end = tsTo;
+                    else
+                    {
+                        MessageBox.Show(this, "Invalid end time. Use hh:mm:ss.", "Input Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        alreadyDownloading = false;
+                        return;
+                    }
+                }
+
+                // If both provided, ensure end > start
+                if (start.HasValue && end.HasValue && end.Value <= start.Value)
+                {
+                    MessageBox.Show(this, "End time must be greater than start time.", "Input Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    alreadyDownloading = false;
+                    return;
+                }
+
+                await _downloader.Download(
+                    url,
+                    chkIsPlaylist.Checked,
+                    cboTarget.Text,
+                    start,
+                    end,
+                    source.Token);
+            }
             source = null;
 
             if (cboTarget.Items.IndexOf(cboTarget.Text) == -1)

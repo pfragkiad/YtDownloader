@@ -39,6 +39,12 @@
             statusStrip1 = new StatusStrip();
             tstStatus = new ToolStripStatusLabel();
             cboTarget = new ComboBox();
+            txtFrom = new MaskedTextBox();
+            txtTo = new MaskedTextBox();
+            label3 = new Label();
+            label4 = new Label();
+            chkTrimVideo = new CheckBox();
+            tstYtVersion = new ToolStripStatusLabel();
             statusStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -122,7 +128,7 @@
             // 
             // statusStrip1
             // 
-            statusStrip1.Items.AddRange(new ToolStripItem[] { tstStatus });
+            statusStrip1.Items.AddRange(new ToolStripItem[] { tstStatus, tstYtVersion });
             statusStrip1.Location = new Point(0, 499);
             statusStrip1.Name = "statusStrip1";
             statusStrip1.Size = new Size(630, 22);
@@ -144,12 +150,77 @@
             cboTarget.Size = new Size(556, 23);
             cboTarget.TabIndex = 7;
             // 
+            // txtFrom
+            // 
+            txtFrom.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            txtFrom.Location = new Point(429, 114);
+            txtFrom.Mask = "00:00:00";
+            txtFrom.Name = "txtFrom";
+            txtFrom.Size = new Size(62, 23);
+            txtFrom.TabIndex = 8;
+            txtFrom.TextAlign = HorizontalAlignment.Center;
+            txtFrom.ValidatingType = typeof(DateTime);
+            // 
+            // txtTo
+            // 
+            txtTo.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            txtTo.Location = new Point(536, 114);
+            txtTo.Mask = "00:00:00";
+            txtTo.Name = "txtTo";
+            txtTo.Size = new Size(62, 23);
+            txtTo.TabIndex = 8;
+            txtTo.TextAlign = HorizontalAlignment.Center;
+            txtTo.ValidatingType = typeof(DateTime);
+            // 
+            // label3
+            // 
+            label3.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            label3.AutoSize = true;
+            label3.Location = new Point(385, 117);
+            label3.Name = "label3";
+            label3.Size = new Size(38, 15);
+            label3.TabIndex = 9;
+            label3.Text = "From:";
+            // 
+            // label4
+            // 
+            label4.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            label4.AutoSize = true;
+            label4.Location = new Point(507, 117);
+            label4.Name = "label4";
+            label4.Size = new Size(23, 15);
+            label4.TabIndex = 9;
+            label4.Text = "To:";
+            // 
+            // chkTrimVideo
+            // 
+            chkTrimVideo.AutoSize = true;
+            chkTrimVideo.Location = new Point(279, 116);
+            chkTrimVideo.Name = "chkTrimVideo";
+            chkTrimVideo.Size = new Size(82, 19);
+            chkTrimVideo.TabIndex = 10;
+            chkTrimVideo.Text = "Trim video";
+            chkTrimVideo.UseVisualStyleBackColor = true;
+            // 
+            // tstYtVersion
+            // 
+            tstYtVersion.Name = "tstYtVersion";
+            tstYtVersion.Size = new Size(545, 17);
+            tstYtVersion.Spring = true;
+            tstYtVersion.Text = "0.0.0.0";
+            tstYtVersion.TextAlign = ContentAlignment.MiddleRight;
+            // 
             // MainForm
             // 
             AcceptButton = btnDownload;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(630, 521);
+            Controls.Add(chkTrimVideo);
+            Controls.Add(label4);
+            Controls.Add(label3);
+            Controls.Add(txtTo);
+            Controls.Add(txtFrom);
             Controls.Add(cboTarget);
             Controls.Add(statusStrip1);
             Controls.Add(chkIsPlaylist);
@@ -181,5 +252,11 @@
         private StatusStrip statusStrip1;
         private ToolStripStatusLabel tstStatus;
         private ComboBox cboTarget;
+        private MaskedTextBox txtFrom;
+        private MaskedTextBox txtTo;
+        private Label label3;
+        private Label label4;
+        private CheckBox chkTrimVideo;
+        private ToolStripStatusLabel tstYtVersion;
     }
 }

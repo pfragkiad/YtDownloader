@@ -5,7 +5,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Globalization;
+using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace YtDownloader;
 
@@ -87,14 +89,28 @@ public class Downloader
 
     List<string> IgnoredLabels = ["[youtube]", "[info]", "Deleting original", "[ExtractAudio] Not converting", "[youtube:tab]", "[youtube:playlist]", "[FixupM4a]"];
 
+    // Existing signature preserved (no segment trimming).
+    public Task Download(
+        string urlOrId,
+        bool isPlaylist,
+        string targetDirectory,
+        CancellationToken cancellationToken = default) =>
+        Download(urlOrId, isPlaylist, targetDirectory, null, null, cancellationToken);
+
+    // New overload with optional segment trimming (keeps comments above intact).
     public async Task Download(
         string urlOrId,
         bool isPlaylist,
         string targetDirectory,
+        TimeSpan? startTime,
+        TimeSpan? endTime,
         CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(targetDirectory))
             Directory.CreateDirectory(targetDirectory);
+
+        if (startTime.HasValue && endTime.HasValue && endTime.Value <= startTime.Value)
+            throw new ArgumentException("End time must be greater than start time.");
 
         int count = 1;
         int currentIndex = 1;
@@ -104,20 +120,17 @@ public class Downloader
             urlOrId = GetId(urlOrId, isPlaylist);
         }
 
-
-        //force playlist validation if the plain url is given
-        //int? returnedCount = await GetPlaylistCount(urlOrId);
-        //isPlaylist = (returnedCount ?? 0) > 0;
-        //if (isPlaylist) count = returnedCount!.Value;
         if (isPlaylist)
             count = await GetPlaylistCount(urlOrId) ?? 1;
-         
-        
 
-        string arguments = !isPlaylist ?
-            $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(title)s.%(ext)s\" -- {urlOrId}" :
-            $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {urlOrId}";
+        string segmentPattern = BuildSectionPattern(startTime, endTime);
+        string segmentArgs = string.IsNullOrEmpty(segmentPattern)
+            ? string.Empty
+            : $" --download-sections \"{segmentPattern}\" --force-keyframes-at-cuts";
 
+        string arguments = !isPlaylist
+            ? $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0{segmentArgs} -o \"%(title)s.%(ext)s\" -- {urlOrId}"
+            : $"-f bestaudio --extract-audio --audio-format mp3 --audio-quality 0{segmentArgs} -o \"%(playlist_index)02d %(title)s.%(ext)s\" -- {urlOrId}";
 
         var process = _provider.GetConsoleRunner();
 
@@ -192,6 +205,19 @@ public class Downloader
         }
     }
 
+    private static string BuildSectionPattern(TimeSpan? start, TimeSpan? end)
+    {
+        if (!start.HasValue && !end.HasValue) return string.Empty;
+
+        string startStr = start.HasValue ? FormatTime(start.Value) : string.Empty;
+        string endStr = end.HasValue ? FormatTime(end.Value) : string.Empty;
+        return $"*{startStr}-{endStr}";
+    }
+
+    private static string FormatTime(TimeSpan time) => time.ToString(@"hh\:mm\:ss", EN);
+
+
+
     private static string GetId(string url, bool isPlaylist)
     {
         if (isPlaylist)
@@ -243,6 +269,26 @@ public class Downloader
     public async Task<string?> GetFilename(string videoId) => await _process.Run(_exePath, $" --get-filename -- {videoId}");
 
     public async Task<string?> GetTitle(string videoId) => await _process.Run(_exePath, $" --get-title -- {videoId}");
+
+    public async Task<string?> GetVersion()
+    {
+        string? output = await _process.Run(_exePath, "--version");
+        return output?.Trim();
+    }
+
+    public async Task<string?> GetLatestVersion()
+    {
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("YtDownloader");
+
+        string json = await client.GetStringAsync("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest");
+        using JsonDocument document = JsonDocument.Parse(json);
+
+        if (!document.RootElement.TryGetProperty("tag_name", out JsonElement tagName))
+            return null;
+
+        return tagName.GetString()?.Trim();
+    }
 
 
 
