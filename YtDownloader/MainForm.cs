@@ -45,22 +45,48 @@ namespace YtDownloader
                 string? currentVersion = await _downloader.GetVersion();
                 string? latestVersion = await _downloader.GetLatestVersion();
 
-                if (string.IsNullOrWhiteSpace(currentVersion))
-                {
-                    tstYtVersion.Text = "yt-dlp: unknown";
-                    return;
-                }
+                UpdateYtVersionStatus(currentVersion, latestVersion);
 
-                tstYtVersion.Text = string.IsNullOrWhiteSpace(latestVersion)
-                    ? $"yt-dlp: {currentVersion}"
-                    : currentVersion == latestVersion
-                        ? $"yt-dlp: {currentVersion}"
-                        : $"yt-dlp: {currentVersion} (latest: {latestVersion})";
+                if (!string.IsNullOrWhiteSpace(currentVersion)
+                    && !string.IsNullOrWhiteSpace(latestVersion)
+                    && currentVersion != latestVersion)
+                {
+                    DialogResult result = MessageBox.Show(
+                        this,
+                        $"A newer yt-dlp version is available.\r\n\r\nCurrent: {currentVersion}\r\nLatest: {latestVersion}\r\n\r\nUpdate now?",
+                        "yt-dlp Update",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        await _downloader.Update();
+
+                        currentVersion = await _downloader.GetVersion();
+                        latestVersion = await _downloader.GetLatestVersion();
+                        UpdateYtVersionStatus(currentVersion, latestVersion);
+                    }
+                }
             }
             catch
             {
                 tstYtVersion.Text = "yt-dlp: unavailable";
             }
+        }
+
+        private void UpdateYtVersionStatus(string? currentVersion, string? latestVersion)
+        {
+            if (string.IsNullOrWhiteSpace(currentVersion))
+            {
+                tstYtVersion.Text = "yt-dlp: unknown";
+                return;
+            }
+
+            tstYtVersion.Text = string.IsNullOrWhiteSpace(latestVersion)
+                ? $"yt-dlp: {currentVersion}"
+                : currentVersion == latestVersion
+                    ? $"yt-dlp: {currentVersion}"
+                    : $"yt-dlp: {currentVersion} (latest: {latestVersion})";
         }
 
         #region Downloader events

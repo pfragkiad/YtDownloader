@@ -287,6 +287,42 @@ public class Downloader
         return tagName.GetString()?.Trim();
     }
 
+    public async Task<bool> Update(CancellationToken cancellationToken = default)
+    {
+        string workingDirectory = Path.GetDirectoryName(_exePath) ?? AppContext.BaseDirectory;
+
+        void Process_OutputReceived(object? sender, DataReceivedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(e.Data))
+                return;
+
+            LogStatus?.Invoke(this, new StatusChangedEventArgs(e.Data));
+        }
+
+        _process.OutputReceived += Process_OutputReceived;
+
+        try
+        {
+            StatusChanged?.Invoke(this, new StatusChangedEventArgs("Updating yt-dlp..."));
+
+            int exitCode = await _process.RunWithEvents(_exePath, "-U", workingDirectory, cancellationToken);
+
+            StatusChanged?.Invoke(this, new StatusChangedEventArgs(
+                exitCode == 0 ? "yt-dlp update finished." : "yt-dlp update failed."));
+
+            return exitCode == 0;
+        }
+        catch (TaskCanceledException)
+        {
+            StatusChanged?.Invoke(this, new StatusChangedEventArgs("yt-dlp update cancelled."));
+            return false;
+        }
+        finally
+        {
+            _process.OutputReceived -= Process_OutputReceived;
+        }
+    }
+
 
 
     #endregion
